@@ -1,0 +1,14 @@
+version: '3'
+services:
+  minio:
+    image: minio/minio
+    ports:
+      - "9000:9000"
+    environment:
+      - MINIO_ACCESS_KEY=minio
+      - MINIO_SECRET_KEY=minio123
+      - MINIO_DISTRIBUTION_POLICY=all
+      - MINIO_QUORUM_CONSENSUS=on
+      - MINIO_PEERS="http://node-2:9000,http://node-3:9000"
+    volumes:
+      - /mnt/minio-storage:/export
