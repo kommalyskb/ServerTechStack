@@ -25,24 +25,94 @@ For example, in the instructions I provided, the shared directory is /mnt/minio-
 sudo mkdir -p /mnt/minio-storage
 ```
 ## Docker Compose file
-On each node, create a Docker Compose file that defines the Minio service. The Compose file should specify the shared storage location as the `MINIO_VOLUMES` environment variable, and `MINIO_PEERS` should be IP address of other nodes
+
 ```
 version: '3'
+
 services:
-  minio:
+  minio1:
     image: minio/minio
+    command: server /export
+    environment:
+      MINIO_ACCESS_KEY: minio
+      MINIO_SECRET_KEY: minio123
+      MINIO_DISABLE_API_KEY: 'true'
     ports:
       - "9000:9000"
-    environment:
-      - MINIO_ACCESS_KEY=minio
-      - MINIO_SECRET_KEY=minio123
-      - MINIO_DISTRIBUTION_POLICY=all
-      - MINIO_QUORUM_CONSENSUS=on
-      - MINIO_PEERS="http://node-2:9000,http://node-3:9000"
     volumes:
       - /mnt/minio-storage:/export
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+          - node.hostname == minio1
+    networks:
+      - storage_network
+
+  minio2:
+    image: minio/minio
+    command: server /export
+    environment:
+      MINIO_ACCESS_KEY: minio
+      MINIO_SECRET_KEY: minio123
+      MINIO_DISABLE_API_KEY: 'true'
+    ports:
+      - "9000:9000"
+    volumes:
+      - /mnt/minio-storage:/export
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+          - node.hostname == minio2
+    networks:
+      - storage_network
+
+  minio3:
+    image: minio/minio
+    command: server /export
+    environment:
+      MINIO_ACCESS_KEY: minio
+      MINIO_SECRET_KEY: minio123
+      MINIO_DISABLE_API_KEY: 'true'
+    ports:
+      - "9000:9000"
+    volumes:
+      - /mnt/minio-storage:/export
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+          - node.hostname == minio3
+    networks:
+      - storage_network
+
+  prometheus:
+    image: prom/prometheus
+    volumes:
+      - /path/on/host/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - /path/on/host/data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - storage_network
+  grafana:
+    image: grafana/grafana
+    volumes:
+      - /path/on/host/grafana:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    networks:
+      - storage_network
+
+networks:
+  storage_network:
+    driver: overlay
+
 ```
-- ແຕ່ລະເຄື່ອງຕ້ອງໄດ້ແກ້ MINIO_PEERS ຕາມຄວາມເໝາະສົມ ເຊັ່ນ ຖ້າຢູ່ node-1 ກໍ່ໃຫ້ໃສ່ແຕ່ node-2 ກັບ node-3, ແຕ່ຖ້າຢູ່ node-2 ແມ່ນໃຫ້ໃສ່ node-1 ກັບ node-3
 
 Start the Minio cluster by running `docker-compose up` on each node.
 
