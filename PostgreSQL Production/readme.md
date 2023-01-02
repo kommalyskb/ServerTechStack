@@ -95,3 +95,13 @@ To start the PostgreSQL cluster and the monitoring services, run the `docker-com
 
 Prometheus: `http://<node_ip>:9090`
 Grafana: `http://<node_ip>:3000`
+
+## Connect to Server via connection string
+```
+"Host=<node_ip1>,<node_ip2>,<node_ip3>;Port=5432;Database=postgres;Username=postgres;Password=postgres"
+```
+This connection string specifies the IP addresses of the nodes in the cluster (separated by commas) and the port number for the PostgreSQL service (5432). It also specifies the name of the database (`postgres`) and the username and password for the database.
+
+You can use this connection string as is, or modify it to fit your specific needs. For example, you can change the `Database` parameter to specify a different database name, or change the `Username` and `Password` parameters to specify different credentials.
+
+Keep in mind that this is just one way to specify a connection string for a PostgreSQL cluster. There are other ways to do it as well, depending on your specific needs. You can find more information about connection strings for PostgreSQL in the documentation for the PostgreSQL ADO.NET driver, which you can use to connect to a PostgreSQL database from a C# application: https://www.npgsql.org/doc/connection-string-parameters/.
