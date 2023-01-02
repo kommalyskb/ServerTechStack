@@ -1,0 +1,48 @@
+version: '3'
+
+services:
+  postgres:
+    image: postgres:latest
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      PG_EXPORTER_WEB_LISTEN_ADDRESS: ":9187"
+      PG_EXPORTER_EXTEND_QUERY_DISABLED: true
+      PG_EXPORTER_CONNECTION_TIMEOUT: 5s
+    ports:
+      - "5432:5432"
+      - "9187:9187"
+    volumes:
+      - /path/on/host:/var/lib/postgresql/data
+    deploy:
+      mode: replicated
+      replicas: 3
+      placement:
+        constraints:
+          - node.role == manager
+    networks:
+      - postgresql_network
+
+  prometheus:
+    image: prom/prometheus
+    volumes:
+      - /path/on/host/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - /path/on/host/data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - postgresql_network
+  grafana:
+    image: grafana/grafana
+    volumes:
+      - /path/on/host/grafana:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    networks:
+      - postgresql_network
+
+networks:
+  postgresql_network:
+    name: postgresql_cluster_default
+    driver: overlay

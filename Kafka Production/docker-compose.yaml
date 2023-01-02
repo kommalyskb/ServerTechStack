@@ -1,0 +1,71 @@
+version: '3'
+
+services:
+  zookeeper:
+    image: bitnami/zookeeper:latest
+    restart: always
+    environment:
+      ALLOW_ANONYMOUS_LOGIN: 'yes'
+    ports:
+      - "2181:2181"
+      - "8080:8080"
+    volumes:
+      - /path/on/host:/bitnami/zookeeper
+    deploy:
+      mode: replicated
+      replicas: 3
+      placement:
+        constraints:
+          - node.role == manager
+    networks:
+      - streaming_network
+
+  kafka:
+    image: bitnami/kafka:latest
+    restart: always
+    environment:
+      KAFKA_CFG_ZOOKEEPER_CONNECT: zookeeper:2181
+      ALLOW_PLAINTEXT_LISTENER: 'yes'
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,SSL:SSL,SASL_PLAINTEXT:SASL_PLAINTEXT,SASL_SSL:SASL_SSL
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,SSL://:9093,SASL_PLAINTEXT://:9094,SASL_SSL://:9095
+      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+      - "9094:9094"
+      - "9095:9095"
+      - "8080:8080"
+    volumes:
+      - /path/on/host:/bitnami/kafka
+    deploy:
+      mode: replicated
+      replicas: 3
+      placement:
+        constraints:
+          - node.role == manager
+    networks:
+      - streaming_network
+
+  prometheus:
+    image: prom/prometheus
+    volumes:
+      - /path/on/host/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - /path/on/host/data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - streaming_network
+  grafana:
+    image: grafana/grafana
+    volumes:
+      - /path/on/host/grafana:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    networks:
+      - streaming_network
+
+networks:
+  streaming_network:
+    name: streaming_cluster_default
+    driver: overlay
+

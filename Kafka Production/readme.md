@@ -1,74 +1,138 @@
 # Kafka for Production
 ເຊີເວີທັງຫມົດທີ່ຕ້ອງການ
-- Server Zookeeper 2 ຫນ່ວຍ
-- Server Kafka 2 ຫນ່ວຍ
-
-ທຸກໜ່ວຍຕ້ອງຕິດຕັ້ງ Docker ແລະ Docker compose
+- Server 3 ຫນ່ວຍ
+## Install Docker and Docker Compose
+1. Update the system
 ```
+sudo apt-get update
+```
+
+2. Install Docker
+``` 
 sudo apt install docker.io -y
 sudo systemctl enable --now docker
 sudo usermod -aG docker $USER
 ```
+3. Install Docker compose
 ```
 sudo curl -L "https://github.com/docker/compose/releases/download/1.27.4/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
 sudo chmod +x /usr/local/bin/docker-compose
 ```
-Here is a Docker Compose file that can be used to set up Apache Kafka in a production environment with high availability:
-## Zookeeper
-ຕ້ອງຕິດຕັ້ງໃສ່ ທັງ 2 ໜ່ວຍ
-```
-version: '2'
 
-services:
-  zookeeper:
-    image: bitnami/zookeeper
-    hostname: zookeeper-1
-    container_name: zookeeper-1
-    volumes:
-      - ./data:/bitnami/zookeeper
-    ports:
-      - "2181:2181"
-      - "2888:2888"
-      - "3888:3888"
-    extra_hosts:
-      - "zookeeper-1:10.1.1.1"
-      - "zookeeper-2:10.1.1.2"
-      - "kafka-1:10.1.1.3"
-      - "kafka-2:10.1.1.4"
-      - "kafka-3:10.1.1.5"
-    environment:
-      - ZOO_MY_ID=<zookeeper-id>
-      - ALLOW_ANONYMOUS_LOGIN=yes
-      - ZOO_PORT=2181
-      - ZOO_SERVERS=server.1=<zookeeper-1>:2888:3888 server.2=<zookeeper-2>:2888:3888
+## Installation Kafka, Zookeeper and Prothemeus
+ສາມາດຕິດຕັ້ງແບບໃຊ້ທັງ zookeeper ແລະ kafka ພ້ອມກັນໄດ້
+1. ສ້າງ Docker Network
+On Host 1
 ```
-
-## Kafka
-ຕ້ອງຕິດຕັ້ງໃສ່ທັງ 2 ໜ່ວຍ
+docker network create --driver bridge streaming_network
+```
+On Host 2 & 3
+```
+docker network create --driver bridge --attachable streaming_network
+```
+2. ສ້າງ `docker-compose.yaml`
 ```
 version: '3'
 
 services:
+  zookeeper:
+    image: bitnami/zookeeper:latest
+    restart: always
+    environment:
+      ALLOW_ANONYMOUS_LOGIN: 'yes'
+    ports:
+      - "2181:2181"
+      - "8080:8080"
+    volumes:
+      - /path/on/host:/bitnami/zookeeper
+    deploy:
+      mode: replicated
+      replicas: 3
+      placement:
+        constraints:
+          - node.role == manager
+    networks:
+      - streaming_network
+
   kafka:
-    image: bitnami/kafka
-    hostname: kafka-1
-    container_name: kafka-1
+    image: bitnami/kafka:latest
+    restart: always
+    environment:
+      KAFKA_CFG_ZOOKEEPER_CONNECT: zookeeper:2181
+      ALLOW_PLAINTEXT_LISTENER: 'yes'
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,SSL:SSL,SASL_PLAINTEXT:SASL_PLAINTEXT,SASL_SSL:SASL_SSL
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,SSL://:9093,SASL_PLAINTEXT://:9094,SASL_SSL://:9095
+      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: PLAINTEXT
     ports:
       - "9092:9092"
       - "9093:9093"
+      - "9094:9094"
+      - "9095:9095"
+      - "8080:8080"
     volumes:
-    - ./data:/bitnami/kafka
-    extra_hosts:
-      - "zookeeper-1:10.1.1.1"
-      - "zookeeper-2:10.1.1.2"
-      - "kafka-1:10.1.1.3"
-      - "kafka-2:10.1.1.4"
-      - "kafka-3:10.1.1.5"
-    environment:
-      - ALLOW_ANONYMOUS_LOGIN=yes
-      - KAFKA_CFG_ZOOKEEPER_CONNECT=<zookeeper-1>:2181,<zookeeper-2>:2182
-      - KAFKA_CFG_BROKER_ID=<kafka-id>
-      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092
-      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://<kafka-hostname>:9092
+      - /path/on/host:/bitnami/kafka
+    deploy:
+      mode: replicated
+      replicas: 3
+      placement:
+        constraints:
+          - node.role == manager
+    networks:
+      - streaming_network
+
+  prometheus:
+    image: prom/prometheus
+    volumes:
+      - /path/on/host/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - /path/on/host/data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - streaming_network
+  grafana:
+    image: grafana/grafana
+    volumes:
+      - /path/on/host/grafana:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    networks:
+      - streaming_network
+
+networks:
+  streaming_network:
+    name: streaming_cluster_default
+    driver: overlay
 ```
-- Replace `<zookeeper-1>`, `<zookeeper-2>`, `<kafka-hostname>` with their IP address, `<zookeeper-id>` with zeekeeper id, `<kafka-id>` with kafka id
+This `docker-compose.yml` file defines four services:
+
+- `zookeeper`: A Zookeeper node in the cluster. It exposes ports 2181 and 8080 for the Zookeeper service and the Prometheus exporter, respectively.
+
+- `kafka`: A Kafka broker in the cluster. It exposes ports 9092-9095 for the Kafka service and port 8080 for the Prometheus exporter.
+
+- `prometheus`: A Prometheus server that scrapes metrics from the Kafka and Zookeeper nodes. It exposes port 9090 for the Prometheus dashboard.
+
+grafana: A Grafana server that displays the metrics collected by Prometheus in customizable dashboards. It exposes port 3000 for the Grafana dashboard.
+
+The `deploy` section of the `zookeeper` and `kafka` services specifies that three replicas of each service should be run, and the `placement` constraints ensure that the replicas are distributed across the three nodes in the cluster.
+
+The my_network network connects all the services and allows them to communicate with each other using the service names as hostnames.
+
+To start the Kafka cluster and the monitoring services, run the docker-compose up -d command on each of the three nodes in the cluster. You can then access the Prometheus and Grafana dashboards at the following URLs:
+
+Prometheus: `http://<node_ip>:9090`
+Grafana: `http://<node_ip>:3000`
+3. Create a `prometheus.yml` file in the host directory specified in the `volumes` section of the `prometheus` service. In the `prometheus.yml` file, add the following configuration to specify the Kafka and Zookeeper nodes that Prometheus should scrape metrics from:
+```
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'kafka'
+    static_configs:
+      - targets: ['kafka:8080']
+
+  - job_name: 'zookeeper'
+    static_configs:
+      - targets: ['zookeeper:8080']
+
+```
