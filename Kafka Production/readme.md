@@ -136,3 +136,35 @@ scrape_configs:
       - targets: ['zookeeper:8080']
 
 ```
+
+Other sample
+`https://www.baeldung.com/ops/kafka-docker-setup`
+
+## Monitor docker container
+
+```
+docker stats [container_name] --no-stream --format "{{ json . }}" | python3 -m json.tool
+```
+
+## Create Kafka Topic
+This is topic for telbiz system
+```
+sudo docker exec broker kafka-topics --bootstrap-server broker:9092 --create --topic walletqueuerequest 
+sudo docker exec broker kafka-topics --bootstrap-server broker:9092 --create --topic walletaccount
+sudo docker exec broker kafka-topics --bootstrap-server broker:9092 --create --topic walletconfirmrequest
+sudo docker exec broker kafka-topics --bootstrap-server broker:9092 --create --topic guessservice
+sudo docker exec broker kafka-topics --bootstrap-server broker:9092 --create --topic topupwithbcel
+sudo docker exec broker kafka-topics --bootstrap-server broker:9092 --create --topic smswithbcel
+sudo docker exec broker kafka-topics --bootstrap-server broker:9092 --create --topic datawithbcel
+sudo docker exec broker kafka-topics --bootstrap-server broker:9092 --create --topic smsconfirmrequest
+sudo docker exec broker kafka-topics --bootstrap-server broker:9092 --create --topic topupconfirmrequest
+sudo docker exec broker kafka-topics --bootstrap-server broker:9092 --create --topic dataconfirmrequest
+sudo docker exec broker kafka-topics --bootstrap-server broker:9092 --create --topic vasconfirmrequest
+sudo docker exec broker kafka-topics --bootstrap-server broker:9092 --create --topic vaswithbcel
+```
+codecamplao/telbiz-consumer-sms
+codecamplao/telbiz-consumer-payment
+codecamplao/telbiz-consumer-wallet
+codecamplao/telbiz-consumer-topup
+codecamplao/telbiz-consumer-data
+codecamplao/telbiz-consumer-vas

@@ -1,0 +1,16 @@
+version: '3'
+services:
+  redis:
+    image: redislabs/redis
+    restart: always
+    cap_add:
+      - ALL
+    ports:
+      - "12000:12000"
+      - "12001:12001"
+      - "12002:12002"
+      - "12003:12003"
+      - "8443:8443"
+      - "9443:9443"
+    environment:
+      - TZ=Asia/Vientiane

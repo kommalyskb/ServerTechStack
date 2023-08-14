@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  couchbase:
+    image: couchbase/server:community-7.1.1
+    container_name: couchbase
+    ports:
+      - "8091-8094:8091-8094"
+      - "11210-11211:11210-11211"
+    environment:
+      - COUCHBASE_ADMINISTRATOR_USERNAME=admin
+      - COUCHBASE_ADMINISTRATOR_PASSWORD=password
+      - COUCHBASE_BUCKET_TYPE=couchbase
+      - COUCHBASE_BUCKET_NAME=mybucket
+      - COUCHBASE_BUCKET_RAMSIZE=256
+      - COUCHBASE_SERVICES=data,index,query,search
+      - COUCHBASE_INDEX_STORAGE_SETTING=memopt
+    volumes:
+      - couchbase_data:/opt/couchbase/var
+
+volumes:
+  couchbase_data:
+    driver: local
